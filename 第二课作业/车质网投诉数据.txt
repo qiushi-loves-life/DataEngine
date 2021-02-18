@@ -1,0 +1,57 @@
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
+
+
+def get_page_content(url):
+# windows10 下Edge浏览器的userAgent，用于获取页面信息
+	headers={'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36 Edge/16.16299'}
+# 创建content
+	html=requests.get(url,headers=headers,timeout=10)
+	content = html.text
+# 通过content创建BeautifulSoup对象
+	soup = BeautifulSoup(content, 'html.parser', from_encoding='utf-8')
+	return soup
+def analysis(soup):
+# 定位投诉列表（投诉列表使用div标签，表格class为tslb_b）
+	temp = soup.find('div',class_="tslb_b")
+# 创建投诉数据的DataFrame
+	df = pd.DataFrame(columns = ['id', 'brand', 'car_model', 'type', 'desc', 'problem', 'datetime', 'status'])
+	tr_list = temp.find_all('tr')
+	for tr in tr_list:
+		td_list = tr.find_all('td')
+		if len(td_list)>0:
+			id, brand, car_model, type, desc, problem, datetime, status = td_list[0].text, td_list[1].text, td_list[2].text, td_list[3].text, td_list[4].text, td_list[5].text, td_list[6].text, td_list[7].text
+			#print(id, brand, car_model, type, desc, problem, datetime, status)
+			temp = {}
+			temp['id'] = id
+			temp['brand'] = brand
+			temp['car_model'] = car_model
+			temp['type'] = type
+			temp['desc'] = desc
+			temp['problem'] = problem
+			temp['datetime'] = datetime
+			temp['status'] = status
+			df = df.append(temp, ignore_index = True)
+	return df
+
+#为结果创建数据表
+result = pd.DataFrame(columns = ['id', 'brand', 'car_model', 'type', 'desc', 'problem', 'datetime', 'status'])
+
+#车质网投诉1-20页网址
+url1 = 'http://www.12365auto.com/zlts/0-0-0-0-0-0_0-0-'
+url2 = '.shtml'
+
+#爬取车质网1-20页投诉数据
+for i in range(1, 21):
+	url = url1+str(i)+url2
+	soup = get_page_content(url)
+	df = analysis(soup)
+	result = result.append(df)
+
+print(result)
+result.to_excel('car_complain.xlsx', index = False)
+
+
+
+
